@@ -28,7 +28,7 @@ It also provides control entities:
 ## Install with HACS
 
 1. In Home Assistant, open **HACS** and choose **Integrations**.
-2. Open the HACS menu, select **Custom repositories**, and add `https://github.com/pavelkrejsa/recuair` with category **Integration**.
+2. Open the HACS menu, select **Custom repositories**, and add `https://github.com/tprochazka/recuair` with category **Integration**.
 3. Find **Recuair** in HACS and download it.
 4. Restart Home Assistant to load the integration.
 5. Go to **Settings** > **Devices & Services**, select **Add Integration**, and search for **Recuair**.

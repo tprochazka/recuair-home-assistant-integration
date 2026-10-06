@@ -24,13 +24,15 @@ class RecuairApi:
         """Return the local web interface URL for this device."""
         return self._url
 
-    async def _post_data(self, data: dict[str, str]) -> None:
+    async def _post_data(self, data: dict[str, str], path: str = "") -> None:
         """Send a POST request to the Recuair unit.
 
         Recuair uses redirects to indicate success for settings writes.
         """
         try:
-            async with self._session.post(self._url, data=data, allow_redirects=False) as response:
+            async with self._session.post(
+                f"{self._url}{path}", data=data, allow_redirects=False, timeout=7
+            ) as response:
                 if response.status not in (
                     HTTPStatus.MOVED_PERMANENTLY,
                     HTTPStatus.SEE_OTHER,
@@ -38,7 +40,7 @@ class RecuairApi:
                     raise RecuairApiError(
                         f"Unknown response status {response.status} for write operation"
                     )
-        except aiohttp.ClientError as err:
+        except (aiohttp.ClientError, TimeoutError) as err:
             raise RecuairApiError(f"Error writing to Recuair unit: {err}") from err
 
     async def async_set_mode(self, mode: str) -> None:
@@ -56,28 +58,53 @@ class RecuairApi:
                 "g": str(green),
                 "b": str(blue),
                 "intensity": str(intensity),
-            }
+            },
+            path="setting",
         )
 
-    async def async_light_off(self) -> None:
-        """Turn light off."""
-        await self.async_set_light(intensity=0, red=0, green=0, blue=0)
+    async def async_light_off(self, red: int, green: int, blue: int) -> None:
+        """Turn light off while retaining the chosen color for the next turn on."""
+        await self.async_set_light(intensity=0, red=red, green=green, blue=blue)
+
+    async def async_get_light_rgb(self) -> tuple[int, int, int]:
+        """Read the current RGB values from the settings page before a write."""
+        try:
+            async with self._session.get(f"{self._url}setting", timeout=7) as response:
+                response.raise_for_status()
+                soup = BeautifulSoup(await response.text(), "html.parser")
+        except (aiohttp.ClientError, TimeoutError) as err:
+            raise RecuairApiError(f"Error reading Recuair settings: {err}") from err
+
+        values: list[int] = []
+        for channel in ("r", "g", "b"):
+            input_element = soup.find("input", {"name": channel})
+            try:
+                values.append(int(input_element["value"]))
+            except (KeyError, TypeError, ValueError):
+                raise RecuairApiError("Recuair settings page has no readable RGB value")
+        return tuple(values)  # type: ignore[return-value]
 
     async def async_reset_filters(self) -> None:
         """Reset filter notification."""
-        await self._post_data({"filterNotification": "1"})
+        await self._post_data({"filterNotification": "1"}, path="setting")
 
-    async def get_data(self):
+    async def get_data(self) -> dict:
         """Get data from the Recuair unit."""
         try:
-            async with self._session.get(self._url) as response:
+            async with self._session.get(self._url, timeout=7) as response:
                 response.raise_for_status()
                 html = await response.text()
                 soup = BeautifulSoup(html, "html.parser")
-                return self._parse_data(soup)
-        except Exception as e:
-            _LOGGER.error("Error fetching data from Recuair unit: %s", e)
-            return None
+                data = self._parse_data(soup)
+                if not data:
+                    raise RecuairApiError("Recuair returned a page without readable status")
+                return data
+        except RecuairApiError:
+            raise
+        except (aiohttp.ClientError, TimeoutError) as err:
+            raise RecuairApiError(f"Error reading Recuair unit: {err}") from err
+        except Exception as err:
+            raise RecuairApiError(f"Could not parse Recuair status page: {err}") from err
 
     def _parse_data(self, soup):
         """Parse data from the HTML."""
@@ -146,7 +173,11 @@ class RecuairApi:
                         pass
 
         # Ventilation Intensity
-        vent_header = soup.find("span", string=lambda t: t and "Ventilation intensity" in t)
+        vent_header = soup.find(
+            "span",
+            string=lambda t: t
+            and ("Ventilation intensity" in t or "Intenzita větrání" in t),
+        )
         if vent_header:
             vent_box = vent_header.find_next("div", class_="bigText coText")
             if vent_box:

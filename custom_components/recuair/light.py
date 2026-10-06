@@ -19,7 +19,7 @@ from homeassistant.util.color import color_hs_to_RGB
 from .api import RecuairApiError
 from .const import DOMAIN, MODEL
 from .coordinator import RecuairCoordinator
-from .identity import mac_connection
+from .identity import device_identifiers, mac_connection
 
 
 def _intensity_to_brightness(intensity: int) -> int:
@@ -40,7 +40,7 @@ async def async_setup_entry(
     """Set up Recuair light entities from config entry."""
     coordinator: RecuairCoordinator = hass.data[DOMAIN][entry.entry_id]
     device_info = DeviceInfo(
-        identifiers={(DOMAIN, entry.unique_id)},
+        identifiers=device_identifiers(entry),
         connections=mac_connection(entry),
         name=entry.title,
         manufacturer="Recuair",
@@ -115,7 +115,7 @@ class RecuairLight(CoordinatorEntity, LightEntity):
 
     async def async_turn_on(self, **kwargs) -> None:
         """Turn on light with optional brightness and RGB values."""
-        rgb = kwargs.get(ATTR_RGB_COLOR, self._rgb)
+        rgb = kwargs.get(ATTR_RGB_COLOR)
         hs_color = kwargs.get(ATTR_HS_COLOR)
         brightness = kwargs.get(ATTR_BRIGHTNESS)
 
@@ -133,12 +133,10 @@ class RecuairLight(CoordinatorEntity, LightEntity):
         ):
             rgb = color_hs_to_RGB(float(hs_color[0]), float(hs_color[1]))
 
-        if not isinstance(rgb, (tuple, list)) or len(rgb) != 3:
-            rgb = self._rgb
-
-        red, green, blue = (int(rgb[0]), int(rgb[1]), int(rgb[2]))
-
         try:
+            if not isinstance(rgb, (tuple, list)) or len(rgb) != 3:
+                rgb = await self.coordinator.api.async_get_light_rgb()
+            red, green, blue = (int(rgb[0]), int(rgb[1]), int(rgb[2]))
             await self.coordinator.api.async_set_light(
                 intensity=intensity, red=red, green=green, blue=blue
             )
@@ -153,7 +151,9 @@ class RecuairLight(CoordinatorEntity, LightEntity):
     async def async_turn_off(self, **kwargs) -> None:
         """Turn off light."""
         try:
-            await self.coordinator.api.async_light_off()
+            await self.coordinator.api.async_light_off(
+                *await self.coordinator.api.async_get_light_rgb()
+            )
         except RecuairApiError as err:
             raise HomeAssistantError(str(err)) from err
 

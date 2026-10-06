@@ -1,12 +1,12 @@
 {
   "domain": "recuair",
   "name": "Recuair",
-  "documentation": "https://github.com/pavelkrejsa/recuair",
-  "issue_tracker": "https://github.com/pavelkrejsa/recuair/issues",
-  "codeowners": ["@pavelkrejsa"],
+  "documentation": "https://github.com/tprochazka/recuair",
+  "issue_tracker": "https://github.com/tprochazka/recuair/issues",
+  "codeowners": ["@tprochazka"],
   "config_flow": true,
   "iot_class": "local_polling",
-  "version": "0.1.2",
+  "version": "0.2.0b1",
   "requirements": ["beautifulsoup4==4.12.3"],
   "dependencies": ["dhcp", "zeroconf"],
   "dhcp": [

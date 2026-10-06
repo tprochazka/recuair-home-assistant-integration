@@ -6,24 +6,19 @@ import logging
 from typing import Any
 
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
+from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from homeassistant.util import dt as dt_util
 
-from .api import RecuairApi
+from .api import RecuairApi, RecuairApiError
 from .const import DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
 
 
-class RecuairCoordinator(DataUpdateCoordinator[dict[str, Any] | None]):
+class RecuairCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     """Coordinate one status-page poll for all Recuair entities."""
 
-    def __init__(
-        self,
-        hass: HomeAssistant,
-        api: RecuairApi,
-        scan_interval: int,
-    ) -> None:
+    def __init__(self, hass: HomeAssistant, api: RecuairApi, scan_interval: int) -> None:
         """Initialize the coordinator and shared device API."""
         self.api = api
         super().__init__(
@@ -34,9 +29,11 @@ class RecuairCoordinator(DataUpdateCoordinator[dict[str, Any] | None]):
             update_interval=timedelta(seconds=scan_interval),
         )
 
-    async def _async_update_data(self) -> dict[str, Any] | None:
+    async def _async_update_data(self) -> dict[str, Any]:
         """Fetch the current device state once for all platforms."""
-        device_data = await self.api.get_data()
-        if device_data:
-            device_data["last_successful_update"] = dt_util.utcnow()
+        try:
+            device_data = await self.api.get_data()
+        except RecuairApiError as err:
+            raise UpdateFailed(str(err)) from err
+        device_data["last_successful_update"] = dt_util.utcnow()
         return device_data

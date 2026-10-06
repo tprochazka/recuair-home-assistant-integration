@@ -14,7 +14,7 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import DOMAIN, MODEL
 from .coordinator import RecuairCoordinator
-from .identity import mac_connection
+from .identity import device_identifiers, mac_connection, sensor_unique_id
 
 SENSOR_TYPES: tuple[SensorEntityDescription, ...] = (
     SensorEntityDescription(
@@ -84,7 +84,7 @@ async def async_setup_entry(
     coordinator: RecuairCoordinator = hass.data[DOMAIN][entry.entry_id]
 
     device_info = DeviceInfo(
-        identifiers={(DOMAIN, entry.unique_id)},
+        identifiers=device_identifiers(entry),
         connections=mac_connection(entry),
         name=entry.title,
         manufacturer="Recuair",
@@ -112,7 +112,7 @@ class RecuairSensor(CoordinatorEntity, SensorEntity):
         """Initialize the sensor."""
         super().__init__(coordinator)
         self.entity_description = description
-        self._attr_unique_id = f"{entry.unique_id}_{description.key}"
+        self._attr_unique_id = sensor_unique_id(entry, description.key)
         self._attr_device_info = device_info
 
     @property

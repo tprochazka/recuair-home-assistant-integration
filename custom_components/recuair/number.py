@@ -12,7 +12,7 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from .api import RecuairApiError
 from .const import DOMAIN, MODEL
 from .coordinator import RecuairCoordinator
-from .identity import mac_connection
+from .identity import device_identifiers, mac_connection
 
 
 async def async_setup_entry(
@@ -23,7 +23,7 @@ async def async_setup_entry(
     """Set up Recuair number entities from config entry."""
     coordinator: RecuairCoordinator = hass.data[DOMAIN][entry.entry_id]
     device_info = DeviceInfo(
-        identifiers={(DOMAIN, entry.unique_id)},
+        identifiers=device_identifiers(entry),
         connections=mac_connection(entry),
         name=entry.title,
         manufacturer="Recuair",
@@ -78,8 +78,9 @@ class RecuairLightIntensityNumber(CoordinatorEntity, NumberEntity):
         """
         intensity = int(value)
         try:
+            red, green, blue = await self.coordinator.api.async_get_light_rgb()
             await self.coordinator.api.async_set_light(
-                intensity=intensity, red=255, green=255, blue=255
+                intensity=intensity, red=red, green=green, blue=blue
             )
         except RecuairApiError as err:
             raise HomeAssistantError(str(err)) from err
