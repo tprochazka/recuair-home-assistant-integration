@@ -48,6 +48,13 @@ class RecuairResetFilterButton(CoordinatorEntity, ButtonEntity):
         self._attr_unique_id = f"{entry_identifier(entry)}_reset_filter_reminder"
         self._attr_device_info = device_info
 
+    @property
+    def available(self) -> bool:
+        """Expose the reset only when the DC40 reports filter service is due."""
+        return super().available and bool(
+            (self.coordinator.data or {}).get("filter_reset_available")
+        )
+
     async def async_press(self) -> None:
         """Reset the reminder and then read the current state again."""
         try:

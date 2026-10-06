@@ -6,6 +6,7 @@ import aiohttp
 from bs4 import BeautifulSoup
 
 _LOGGER = logging.getLogger(__name__)
+_FILTER_WARNING_PATTERN = re.compile(r"(?i)\b(filtry|filters?)\b")
 
 
 class RecuairApiError(Exception):
@@ -247,4 +248,8 @@ class RecuairApi:
         ]
         if warnings:
             data["warnings"] = warnings
+        data["filter_reset_available"] = (
+            data.get("filter_status", 1) <= 0
+            or any(_FILTER_WARNING_PATTERN.search(warning) for warning in warnings)
+        )
         return data

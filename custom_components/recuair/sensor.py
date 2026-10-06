@@ -82,7 +82,6 @@ SENSOR_TYPES: tuple[SensorEntityDescription, ...] = (
         key="warnings",
         name="Warnings",
         icon="mdi:alert-outline",
-        entity_registry_enabled_default=False,
     ),
 )
 

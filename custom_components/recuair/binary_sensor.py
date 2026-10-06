@@ -31,7 +31,10 @@ async def async_setup_entry(
         model=MODEL,
         configuration_url=coordinator.api.configuration_url,
     )
-    async_add_entities([RecuairPower(coordinator, entry, device_info)])
+    async_add_entities([
+        RecuairPower(coordinator, entry, device_info),
+        RecuairFilterReplacementNeeded(coordinator, entry, device_info),
+    ])
 
 
 class RecuairPower(CoordinatorEntity, BinarySensorEntity):
@@ -55,3 +58,26 @@ class RecuairPower(CoordinatorEntity, BinarySensorEntity):
         if self.coordinator.data is None:
             return None
         return self.coordinator.data.get("power_on")
+
+
+class RecuairFilterReplacementNeeded(CoordinatorEntity, BinarySensorEntity):
+    """Report the filter-service condition used by the reset control."""
+
+    _attr_has_entity_name = True
+    _attr_name = "Filter Replacement Needed"
+    _attr_device_class = BinarySensorDeviceClass.PROBLEM
+
+    def __init__(
+        self, coordinator: RecuairCoordinator, entry: ConfigEntry, device_info: DeviceInfo
+    ) -> None:
+        """Initialize the filter service status entity."""
+        super().__init__(coordinator)
+        self._attr_unique_id = f"{entry_identifier(entry)}_filter_replacement_needed"
+        self._attr_device_info = device_info
+
+    @property
+    def is_on(self) -> bool | None:
+        """Return whether the DC40 requests filter replacement."""
+        if self.coordinator.data is None:
+            return None
+        return self.coordinator.data.get("filter_reset_available")

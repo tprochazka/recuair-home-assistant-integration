@@ -39,6 +39,20 @@ views:
         title: Servis
         entities:
           - entity: sensor.obyvak_filter_status
+          - entity: binary_sensor.obyvak_filter_replacement_needed
           - entity: sensor.obyvak_firmware_version
           - entity: sensor.obyvak_available_firmware_version
-          - entity: button.obyvak_reset_filter_reminder
+      - type: conditional
+        conditions:
+          - entity: binary_sensor.obyvak_filter_replacement_needed
+            state: "on"
+        card:
+          type: button
+          entity: button.obyvak_reset_filter_reminder
+          name: Potvrdit výměnu filtrů
+          icon: mdi:air-filter
+          tap_action:
+            action: perform-action
+            perform_action: button.press
+            target:
+              entity_id: button.obyvak_reset_filter_reminder

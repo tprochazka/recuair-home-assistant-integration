@@ -150,7 +150,7 @@ class RecuairApiTest(unittest.IsolatedAsyncioTestCase):
             <input name="intensity" value="3">
             <a href="javascript:postForm( {mode:'off'}, '/' , '');"><div class="logo_switch"></div></a>
             <div>ws:2.11 fw:17.5</div><a href="/upgrade">Upgrade fw:17.6</a>
-            <div id="errorModal1">Zkontrolujte filtr</div>
+            <div id="errorModal1">Filtry - vyměňte prosím</div>
             """,
             "html.parser",
         )
@@ -161,4 +161,5 @@ class RecuairApiTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(data["firmware_version"], "17.5")
         self.assertEqual(data["firmware_available_version"], "17.6")
         self.assertTrue(data["power_on"])
-        self.assertEqual(data["warnings"], ["Zkontrolujte filtr"])
+        self.assertEqual(data["warnings"], ["Filtry - vyměňte prosím"])
+        self.assertTrue(data["filter_reset_available"])
