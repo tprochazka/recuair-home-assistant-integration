@@ -8,7 +8,7 @@ from .api import RecuairApi
 from .const import DOMAIN
 from .coordinator import RecuairCoordinator
 
-PLATFORMS = ["sensor", "select", "number", "light"]
+PLATFORMS = ["sensor", "binary_sensor", "select", "number", "light", "button"]
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:

@@ -72,6 +72,18 @@ SENSOR_TYPES: tuple[SensorEntityDescription, ...] = (
         icon="mdi:chip",
         entity_registry_enabled_default=False,
     ),
+    SensorEntityDescription(
+        key="firmware_available_version",
+        name="Available Firmware Version",
+        icon="mdi:download",
+        entity_registry_enabled_default=False,
+    ),
+    SensorEntityDescription(
+        key="warnings",
+        name="Warnings",
+        icon="mdi:alert-outline",
+        entity_registry_enabled_default=False,
+    ),
 )
 
 
@@ -119,5 +131,15 @@ class RecuairSensor(CoordinatorEntity, SensorEntity):
     def native_value(self):
         """Return the state of the sensor."""
         if self.coordinator.data:
+            if self.entity_description.key == "warnings":
+                return len(self.coordinator.data.get("warnings", []))
             return self.coordinator.data.get(self.entity_description.key)
         return None
+
+    @property
+    def extra_state_attributes(self):
+        """Expose individual DC40 warnings without creating transient entities."""
+        if self.entity_description.key != "warnings" or not self.coordinator.data:
+            return None
+        warnings = self.coordinator.data.get("warnings", [])
+        return {"messages": warnings} if warnings else None

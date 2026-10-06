@@ -1,0 +1,44 @@
+title: RecuAir DC40
+views:
+  - title: Obývák
+    path: recuair-obyvak
+    icon: mdi:hvac
+    cards:
+      - type: gauge
+        entity: sensor.obyvak_co2
+        name: CO₂
+        unit: ppm
+        min: 400
+        max: 2000
+        needle: true
+        severity:
+          green: 400
+          yellow: 1000
+          red: 1500
+      - type: entities
+        title: Rekuperace
+        entities:
+          - entity: select.obyvak_mode
+          - entity: light.obyvak_light
+          - entity: number.obyvak_light_intensity
+          - entity: binary_sensor.obyvak_power
+          - entity: sensor.obyvak_ventilation_intensity
+          - entity: sensor.obyvak_room_temperature
+          - entity: sensor.obyvak_outside_temperature
+          - entity: sensor.obyvak_humidity
+      - type: conditional
+        conditions:
+          - entity: sensor.obyvak_warnings
+            state_not: "0"
+        card:
+          type: entities
+          title: Upozornění
+          entities:
+            - entity: sensor.obyvak_warnings
+      - type: entities
+        title: Servis
+        entities:
+          - entity: sensor.obyvak_filter_status
+          - entity: sensor.obyvak_firmware_version
+          - entity: sensor.obyvak_available_firmware_version
+          - entity: button.obyvak_reset_filter_reminder

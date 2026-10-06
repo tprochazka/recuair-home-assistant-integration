@@ -35,6 +35,10 @@ It also provides control entities:
 
 After installation, the DC40 should appear automatically in Home Assistant's discovered integrations. If it does not, add Recuair manually and enter its IP address.
 
+## Dashboard
+
+An example room dashboard is included in [dashboard/recuair.yaml](dashboard/recuair.yaml). Replace its entity IDs with those created for your unit, then use the YAML mode in the raw configuration editor of a dedicated Lovelace dashboard. The filter-reset control intentionally remains in the service section: press it only after replacing the physical filters.
+
 ## Configuration
 
 During the setup process, you will be prompted to enter the following information:

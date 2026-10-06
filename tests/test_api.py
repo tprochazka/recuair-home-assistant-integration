@@ -132,3 +132,33 @@ class RecuairApiTest(unittest.IsolatedAsyncioTestCase):
 
         self.assertEqual(data["device_name"], "Obývák")
         self.assertEqual(session.calls[0][1], "http://192.168.1.235/")
+
+    def test_status_parser_reads_czech_status_and_diagnostics(self) -> None:
+        api = API.RecuairApi("192.168.1.235", Session())
+        soup = API.BeautifulSoup(
+            """
+            <span class="deviceName">Obývák</span>
+            <span class="bigText"><i class="logo_termo_1"></i> 25 °C / 53 %
+              <i class="logo_termo_2"></i> 22 °C</span>
+            <button onclick="showModal('regimeModal')"></button><div><div>
+              <div><span class="bigText">Režim 1</span></div></div></div>
+            <b>876 ppm</b>
+            <button onclick="showModal('filterModal')"></button><div><div></div></div>
+            <div class="filterBox"><div style="width: 27%"></div></div>
+            <span>Intenzita větrání </span><div class="bigText coText"><div class="filterBox">
+              <div style="width: 75%"></div></div></div>
+            <input name="intensity" value="3">
+            <a href="javascript:postForm( {mode:'off'}, '/' , '');"><div class="logo_switch"></div></a>
+            <div>ws:2.11 fw:17.5</div><a href="/upgrade">Upgrade fw:17.6</a>
+            <div id="errorModal1">Zkontrolujte filtr</div>
+            """,
+            "html.parser",
+        )
+
+        data = api._parse_data(soup)
+
+        self.assertEqual(data["ventilation_intensity"], 25)
+        self.assertEqual(data["firmware_version"], "17.5")
+        self.assertEqual(data["firmware_available_version"], "17.6")
+        self.assertTrue(data["power_on"])
+        self.assertEqual(data["warnings"], ["Zkontrolujte filtr"])

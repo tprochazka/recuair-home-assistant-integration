@@ -1,6 +1,7 @@
 """API for Recuair."""
 from http import HTTPStatus
 import logging
+import re
 import aiohttp
 from bs4 import BeautifulSoup
 
@@ -226,4 +227,24 @@ class RecuairApi:
                     fw_version = part.replace("fw:", "")
                     data["firmware_version"] = fw_version
                     break
+
+        firmware_update_link = soup.find("a", href=lambda href: href and "upgrade" in href)
+        if firmware_update_link:
+            firmware_match = re.search(r"fw:([\d.]+)", firmware_update_link.get_text())
+            if firmware_match:
+                data["firmware_available_version"] = firmware_match.group(1)
+
+        # A switch link that would submit `mode=off` means the unit is currently on.
+        power_switch = soup.find("div", class_="logo_switch")
+        if power_switch and power_switch.parent:
+            data["power_on"] = "mode:'off'" in power_switch.parent.get("href", "")
+
+        # DC40 warning dialogs are numbered from one when they contain active warnings.
+        warnings = [
+            element.get_text(" ", strip=True)
+            for element in soup.find_all("div", id=re.compile(r"^errorModal[1-9]"))
+            if element.get_text(" ", strip=True)
+        ]
+        if warnings:
+            data["warnings"] = warnings
         return data
