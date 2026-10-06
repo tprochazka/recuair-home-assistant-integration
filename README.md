@@ -58,6 +58,28 @@ During the setup process, you will be prompted to enter the following informatio
 - **Host**: The local IP address of your Recuair ventilation unit (e.g., `192.168.1.123`).
 - **Scan Interval** Periodical check interval for new data, default is 60 seconds and minimum is 10 seconds.
 
+## Tests and development packages
+
+GitHub Actions runs the Python regression tests and dashboard checks on every push and pull request. After successful checks it builds downloadable ZIPs under the run's **Artifacts** section (retained for 30 days):
+
+- `recuair.zip`: integration files; extract into `/config/custom_components/recuair/`.
+- `recuair-bundle.zip`: integration plus dashboard; extract into `/config/`, then add the dashboard resource and YAML view as described above.
+- `SHA256SUMS.txt`: checksums of both ZIPs.
+
+These are development artifacts, not automatic releases. HACS continues to use the repository's default branch or published releases; downloading a CI artifact does not publish a new HACS version. A future release can reuse the same packaging script.
+
+To run the same checks locally:
+
+```sh
+python -m pip install -r requirements-test.txt
+python -m unittest discover -s tests -v
+node --check dashboard/recuair-dashboard.js
+node tests/test_dashboard.cjs
+python scripts/build_package.py
+```
+
+The tests use local fixtures and HA stubs; they do not contact ventilation units or verify the full Home Assistant runtime.
+
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.

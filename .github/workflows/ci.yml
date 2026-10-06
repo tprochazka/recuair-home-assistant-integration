@@ -1,0 +1,55 @@
+name: Tests and package
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test-and-package:
+    name: Test and build installable ZIPs
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out sources
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 2
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.13'
+          cache: pip
+          cache-dependency-path: requirements-test.txt
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '24'
+      - name: Install test dependencies
+        run: python -m pip install -r requirements-test.txt
+      - name: Run Python regression tests
+        run: python -m unittest discover -s tests -v
+      - name: Check Python syntax
+        run: python -m compileall -q custom_components/recuair scripts
+      - name: Check and test the dashboard
+        run: |
+          node --check dashboard/recuair-dashboard.js
+          node tests/test_dashboard.cjs
+      - name: Check whitespace errors
+        run: git diff-tree --check HEAD
+      - name: Build packages
+        run: python scripts/build_package.py
+      - name: Upload packages
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: recuair-${{ github.sha }}
+          path: dist/*
+          if-no-files-found: error
+          retention-days: 30
