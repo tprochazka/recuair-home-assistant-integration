@@ -12,6 +12,7 @@ from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
+from .entity import RecuairRoleMixin
 from .const import DOMAIN, MODEL
 from .coordinator import RecuairCoordinator
 from .identity import device_identifiers, mac_connection, sensor_unique_id
@@ -110,7 +111,7 @@ async def async_setup_entry(
     async_add_entities(entities)
 
 
-class RecuairSensor(CoordinatorEntity, SensorEntity):
+class RecuairSensor(RecuairRoleMixin, CoordinatorEntity, SensorEntity):
     """Representation of a Sensor."""
 
     def __init__(
@@ -127,6 +128,10 @@ class RecuairSensor(CoordinatorEntity, SensorEntity):
         self._attr_device_info = device_info
 
     @property
+    def _recuair_role(self):
+        return self.entity_description.key
+
+    @property
     def native_value(self):
         """Return the state of the sensor."""
         if self.coordinator.data:
@@ -138,7 +143,9 @@ class RecuairSensor(CoordinatorEntity, SensorEntity):
     @property
     def extra_state_attributes(self):
         """Expose individual DC40 warnings without creating transient entities."""
-        if self.entity_description.key != "warnings" or not self.coordinator.data:
-            return None
-        warnings = self.coordinator.data.get("warnings", [])
-        return {"messages": warnings} if warnings else None
+        attributes = {}
+        if self.entity_description.key == "warnings" and self.coordinator.data:
+            warnings = self.coordinator.data.get("warnings", [])
+            if warnings:
+                attributes["messages"] = warnings
+        return attributes

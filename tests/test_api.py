@@ -22,7 +22,7 @@ class Response:
         return None
 
     async def text(self) -> str:
-        return '<span class="deviceName">Obývák</span>'
+        return '<span class="deviceName">Obývák</span><b>850 ppm</b>'
 
 
 class Request:
@@ -75,6 +75,25 @@ class SettingsSession(Session):
 
 class RecuairApiTest(unittest.IsolatedAsyncioTestCase):
     """Verify paths and readable data without controlling a real unit."""
+
+    def test_light_color_from_firmware_17_5_slider_not_preset(self) -> None:
+        soup = API.BeautifulSoup('''
+          <button onclick="postForm({r:1,g:2,b:3,intensity:5},'/setting','')"></button>
+          <input name="intensity" value="0"
+            onchange="postForm( {r: 255, g: 3, b: 3,intensity:this.value}, '/setting' , '');">
+        ''', "html.parser")
+        api = API.RecuairApi("192.168.1.228", Session())
+        self.assertEqual(api._parse_light_rgb(soup), (255, 3, 3))
+        self.assertEqual(api._parse_data(soup)["light_rgb"], (255, 3, 3))
+
+    def test_missing_or_invalid_color_is_not_guessed(self) -> None:
+        for html in (
+            '<input name="intensity" value="0">',
+            '<input name="intensity" onchange="postForm({r:256,g:3,b:3})">',
+            '<input name="intensity" onchange="postForm({r:12,g:3})">',
+        ):
+            with self.subTest(html=html):
+                self.assertIsNone(API.RecuairApi._parse_light_rgb(API.BeautifulSoup(html, "html.parser")))
 
     async def test_light_uses_setting_endpoint_and_full_payload(self) -> None:
         session = Session()
@@ -163,3 +182,22 @@ class RecuairApiTest(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(data["power_on"])
         self.assertEqual(data["warnings"], ["Filtry - vyměňte prosím"])
         self.assertTrue(data["filter_reset_available"])
+
+    async def test_http_200_error_or_incomplete_page_is_not_success(self):
+        for html in ("", "<h1>Starting up</h1>", '<span class="deviceName">Obývák</span>', '<b>850 ppm</b>'):
+            session = Session()
+            response = Response()
+            async def text():
+                return html
+            response.text = text
+            session.get = lambda *args, **kwargs: Request(response)
+            with self.subTest(html=html), self.assertRaises(API.RecuairApiError):
+                await API.RecuairApi("unit", session).get_data()
+
+
+class FirmwareRequestTest(unittest.IsolatedAsyncioTestCase):
+    async def test_upgrade_uses_android_get_endpoint_once(self):
+        session = Session()
+        api = API.RecuairApi("unit", session)
+        self.assertTrue(await api.async_upgrade_firmware())
+        self.assertEqual(session.calls, [("get", "http://unit/update-cloud", {"allow_redirects": False, "timeout": 7})])

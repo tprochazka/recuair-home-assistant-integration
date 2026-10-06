@@ -77,14 +77,58 @@ class RecuairApi:
         except (aiohttp.ClientError, TimeoutError) as err:
             raise RecuairApiError(f"Error reading Recuair settings: {err}") from err
 
-        values: list[int] = []
+        rgb = self._parse_light_rgb(soup)
+        if rgb is None:
+            raise RecuairApiError("Recuair settings page has no readable RGB value")
+        return rgb
+
+    @staticmethod
+    def _parse_light_rgb(soup) -> tuple[int, int, int] | None:
+        """Read current color from fields or the firmware 17.5 slider handler.
+
+        Color preset buttons also contain RGB values, so only inspect the
+        intensity slider's onchange attribute for the fallback.
+        """
+        values = []
         for channel in ("r", "g", "b"):
-            input_element = soup.find("input", {"name": channel})
+            element = soup.find("input", {"name": channel})
             try:
-                values.append(int(input_element["value"]))
+                values.append(int(element["value"]))
             except (KeyError, TypeError, ValueError):
-                raise RecuairApiError("Recuair settings page has no readable RGB value")
-        return tuple(values)  # type: ignore[return-value]
+                break
+        if len(values) != 3:
+            slider = soup.find("input", {"name": "intensity"})
+            handler = slider.get("onchange", "") if slider else ""
+            payload = re.search(r"\bpostForm\s*\(\s*\{([^}]*)\}", handler)
+            if not payload:
+                return None
+            values = []
+            for channel in ("r", "g", "b"):
+                match = re.search(rf"(?:^|,)\s*{channel}\s*:\s*(\d+)\s*(?=,|$)", payload[1])
+                if not match:
+                    return None
+                values.append(int(match[1]))
+        if not all(0 <= value <= 255 for value in values):
+            return None
+        return (values[0], values[1], values[2])
+
+    async def async_upgrade_firmware(self) -> bool:
+        """Trigger the same update-cloud GET as Android, without retrying it.
+
+        A dropped connection may be the updater restarting the device. False
+        means acceptance was uncertain; subsequent status polls must confirm it.
+        """
+        try:
+            async with self._session.get(
+                f"{self._url}update-cloud", allow_redirects=False, timeout=7
+            ) as response:
+                if response.status not in (200, 202, 301, 302, 303, 307, 308):
+                    raise RecuairApiError(f"Firmware update rejected: HTTP {response.status}")
+                return True
+        except (aiohttp.ServerDisconnectedError, aiohttp.ClientPayloadError, TimeoutError):
+            return False
+        except aiohttp.ClientError as err:
+            raise RecuairApiError(f"Could not start firmware update: {err}") from err
 
     async def async_reset_filters(self) -> None:
         """Reset filter notification."""
@@ -98,7 +142,12 @@ class RecuairApi:
                 html = await response.text()
                 soup = BeautifulSoup(html, "html.parser")
                 data = self._parse_data(soup)
-                if not data:
+                if not data.get("device_name") or not any(
+                    key in data for key in (
+                        "room_temperature", "co2", "mode", "filter_status",
+                        "ventilation_intensity", "power_on",
+                    )
+                ):
                     raise RecuairApiError("Recuair returned a page without readable status")
                 return data
         except RecuairApiError:
@@ -203,20 +252,9 @@ class RecuairApi:
                 pass
 
         # Light Color
-        rgb_values = {}
-        for channel in ("r", "g", "b"):
-            channel_input = soup.find("input", {"name": channel})
-            if channel_input and channel_input.has_attr("value"):
-                try:
-                    rgb_values[channel] = int(channel_input["value"])
-                except (ValueError, TypeError):
-                    pass
-        if len(rgb_values) == 3:
-            data["light_rgb"] = (
-                rgb_values["r"],
-                rgb_values["g"],
-                rgb_values["b"],
-            )
+        rgb = self._parse_light_rgb(soup)
+        if rgb is not None:
+            data["light_rgb"] = rgb
 
         # Firmware Version
         fw_div = soup.find("div", string=lambda t: t and "fw:" in t)

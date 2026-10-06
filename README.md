@@ -45,6 +45,12 @@ The included dashboard is dynamic: it lists every device created by this integra
 
 The all-units card can set automatic, manual, bypass and holiday modes for every discovered DC40, control all unit lights, and turn every unit off. A newly added DC40 appears on the dashboard automatically after Home Assistant has created its entities.
 
+Dashboard labels follow the Home Assistant profile language: Czech for cs, English otherwise. Device and area names remain user-defined.
+
+While the dashboard is visible, the integration polls every 10 seconds and refreshes immediately when it opens. When all dashboards are hidden or closed, it returns to the configured Scan Interval (60 seconds by default). Multiple dashboards share the same polling loop. If a client disconnects without notifying Home Assistant, its activity lease expires after 35 seconds.
+
+The dashboard shows warning chips for available firmware and filter-service reminders. Each action requires confirmation. Firmware updates use the native Home Assistant update entity and the DC40 `update-cloud` endpoint used by the Android app. During installation, last readings remain visible and controls are disabled. The update is confirmed only after the target firmware version returns; after ten minutes without confirmation, normal unavailable reporting resumes. Filter reminders can be reset after replacing the filters. They also appear under **Settings → Repairs**, with warning severity when replacement is due and error severity when filter lifetime reaches zero. The repair dialog requires explicit confirmation before resetting the unit and closes only after a fresh, valid filter reading confirms success. Outages or incomplete responses retain the issue.
+
 ## Configuration
 
 During the setup process, you will be prompted to enter the following information:

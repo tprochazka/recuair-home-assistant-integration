@@ -11,6 +11,7 @@ from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
+from .entity import RecuairRoleMixin
 from .const import DOMAIN, MODEL
 from .coordinator import RecuairCoordinator
 from .identity import device_identifiers, entry_identifier, mac_connection
@@ -37,12 +38,14 @@ async def async_setup_entry(
     ])
 
 
-class RecuairPower(CoordinatorEntity, BinarySensorEntity):
+class RecuairPower(RecuairRoleMixin, CoordinatorEntity, BinarySensorEntity):
     """Report whether the DC40 ventilation unit is switched on."""
 
     _attr_has_entity_name = True
     _attr_name = "Power"
     _attr_device_class = BinarySensorDeviceClass.POWER
+
+    _recuair_role = "power"
 
     def __init__(
         self, coordinator: RecuairCoordinator, entry: ConfigEntry, device_info: DeviceInfo
@@ -60,12 +63,14 @@ class RecuairPower(CoordinatorEntity, BinarySensorEntity):
         return self.coordinator.data.get("power_on")
 
 
-class RecuairFilterReplacementNeeded(CoordinatorEntity, BinarySensorEntity):
+class RecuairFilterReplacementNeeded(RecuairRoleMixin, CoordinatorEntity, BinarySensorEntity):
     """Report the filter-service condition used by the reset control."""
 
     _attr_has_entity_name = True
     _attr_name = "Filter Replacement Needed"
     _attr_device_class = BinarySensorDeviceClass.PROBLEM
+
+    _recuair_role = "filter_replacement_needed"
 
     def __init__(
         self, coordinator: RecuairCoordinator, entry: ConfigEntry, device_info: DeviceInfo

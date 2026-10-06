@@ -10,6 +10,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .api import RecuairApiError
+from .entity import RecuairRoleMixin
 from .const import DOMAIN, MODEL
 from .coordinator import RecuairCoordinator
 from .identity import device_identifiers, entry_identifier, mac_connection
@@ -33,12 +34,14 @@ async def async_setup_entry(
     async_add_entities([RecuairResetFilterButton(coordinator, entry, device_info)])
 
 
-class RecuairResetFilterButton(CoordinatorEntity, ButtonEntity):
+class RecuairResetFilterButton(RecuairRoleMixin, CoordinatorEntity, ButtonEntity):
     """Reset the DC40 filter replacement reminder after a real filter change."""
 
     _attr_has_entity_name = True
     _attr_name = "Reset Filter Reminder"
     _attr_icon = "mdi:air-filter"
+
+    _recuair_role = "reset_filter_reminder"
 
     def __init__(
         self, coordinator: RecuairCoordinator, entry: ConfigEntry, device_info: DeviceInfo
@@ -57,8 +60,11 @@ class RecuairResetFilterButton(CoordinatorEntity, ButtonEntity):
 
     async def async_press(self) -> None:
         """Reset the reminder and then read the current state again."""
-        try:
-            await self.coordinator.api.async_reset_filters()
-        except RecuairApiError as err:
-            raise HomeAssistantError(str(err)) from err
-        await self.coordinator.async_request_refresh()
+        async with self.coordinator.maintenance_lock:
+            if self.coordinator.firmware_update_in_progress:
+                raise HomeAssistantError("Cannot reset filters during a firmware update")
+            try:
+                await self.coordinator.api.async_reset_filters()
+            except RecuairApiError as err:
+                raise HomeAssistantError(str(err)) from err
+            await self.coordinator.async_request_refresh()

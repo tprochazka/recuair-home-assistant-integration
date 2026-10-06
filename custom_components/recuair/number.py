@@ -10,6 +10,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .api import RecuairApiError
+from .entity import RecuairRoleMixin
 from .const import DOMAIN, MODEL
 from .coordinator import RecuairCoordinator
 from .identity import device_identifiers, mac_connection
@@ -33,7 +34,7 @@ async def async_setup_entry(
     async_add_entities([RecuairLightIntensityNumber(coordinator, entry, device_info)])
 
 
-class RecuairLightIntensityNumber(CoordinatorEntity, NumberEntity):
+class RecuairLightIntensityNumber(RecuairRoleMixin, CoordinatorEntity, NumberEntity):
     """Number entity for Recuair light intensity."""
 
     _attr_has_entity_name = True
@@ -42,6 +43,8 @@ class RecuairLightIntensityNumber(CoordinatorEntity, NumberEntity):
     _attr_native_max_value = 5
     _attr_native_step = 1
     _attr_mode = NumberMode.SLIDER
+
+    _recuair_role = "light_intensity_control"
 
     def __init__(
         self,

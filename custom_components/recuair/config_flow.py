@@ -51,8 +51,7 @@ class RecuairConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             (
                 entry
                 for entry in self._async_current_entries()
-                if entry.data.get(CONF_HOST) == host
-                or entry.options.get(CONF_HOST) == host
+                if entry.options.get(CONF_HOST, entry.data.get(CONF_HOST)) == host
             ),
             None,
         )

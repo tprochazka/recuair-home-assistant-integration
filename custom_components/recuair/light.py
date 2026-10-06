@@ -17,6 +17,7 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from homeassistant.util.color import color_hs_to_RGB
 
 from .api import RecuairApiError
+from .entity import RecuairRoleMixin
 from .const import DOMAIN, MODEL
 from .coordinator import RecuairCoordinator
 from .identity import device_identifiers, mac_connection
@@ -50,13 +51,15 @@ async def async_setup_entry(
     async_add_entities([RecuairLight(coordinator, entry, device_info)])
 
 
-class RecuairLight(CoordinatorEntity, LightEntity):
+class RecuairLight(RecuairRoleMixin, CoordinatorEntity, LightEntity):
     """Native Home Assistant light entity for Recuair."""
 
     _attr_has_entity_name = True
     _attr_name = "Light"
     _attr_supported_color_modes = {ColorMode.RGB}
     _attr_color_mode = ColorMode.RGB
+
+    _recuair_role = "light"
 
     def __init__(
         self,

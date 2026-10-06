@@ -1,0 +1,46 @@
+{
+  "issues": {
+    "filter_replacement": {
+      "title": "Vyměňte filtry: {name}",
+      "description": "Jednotka hlásí potřebu výměny filtrů. Po jejich výměně otevřete tuto opravu a resetujte jejich životnost.",
+      "fix_flow": {
+        "step": {
+          "confirm": {
+            "title": "Reset životnosti filtrů",
+            "description": "Vyměnili jste filtry v jednotce **{name}**? Potvrďte pouze po jejich výměně. Do jednotky se odešle příkaz k resetu."
+          }
+        },
+        "error": {
+          "device_unavailable": "Jednotka není dostupná nebo aktualizuje firmware. Zkuste to později.",
+          "reset_failed": "Reset se nepodařilo odeslat. Před dalším pokusem zkontrolujte jednotku.",
+          "cannot_verify": "Reset byl odeslán, ale jeho výsledek nelze ověřit. Zkontrolujte jednotku a zkuste to znovu.",
+          "not_confirmed": "Jednotka stále hlásí potřebu výměny filtrů. Před dalším pokusem ji zkontrolujte."
+        },
+        "abort": {
+          "device_removed": "Jednotka byla odebrána."
+        }
+      }
+    },
+    "filter_exhausted": {
+      "title": "Filtry vyčerpané: {name}",
+      "description": "Životnost filtrů dosáhla nuly. Vyměňte filtry a poté otevřete tuto opravu pro reset jejich životnosti.",
+      "fix_flow": {
+        "step": {
+          "confirm": {
+            "title": "Reset životnosti filtrů",
+            "description": "Vyměnili jste filtry v jednotce **{name}**? Potvrďte pouze po jejich výměně. Do jednotky se odešle příkaz k resetu."
+          }
+        },
+        "error": {
+          "device_unavailable": "Jednotka není dostupná nebo aktualizuje firmware. Zkuste to později.",
+          "reset_failed": "Reset se nepodařilo odeslat. Před dalším pokusem zkontrolujte jednotku.",
+          "cannot_verify": "Reset byl odeslán, ale jeho výsledek nelze ověřit. Zkontrolujte jednotku a zkuste to znovu.",
+          "not_confirmed": "Jednotka stále hlásí potřebu výměny filtrů. Před dalším pokusem ji zkontrolujte."
+        },
+        "abort": {
+          "device_removed": "Jednotka byla odebrána."
+        }
+      }
+    }
+  }
+}

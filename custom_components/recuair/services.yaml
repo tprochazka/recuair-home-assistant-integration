@@ -1,0 +1,17 @@
+dashboard_activity:
+  name: Dashboard activity
+  description: Renew or release a visible dashboard's temporary 10-second polling lease.
+  fields:
+    client_id:
+      required: true
+      selector:
+        text:
+    active:
+      required: true
+      selector:
+        boolean:
+    entry_ids:
+      required: true
+      selector:
+        text:
+          multiple: true

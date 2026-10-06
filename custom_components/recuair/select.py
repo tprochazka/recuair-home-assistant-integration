@@ -12,6 +12,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .api import RecuairApiError
+from .entity import RecuairRoleMixin
 from .const import DOMAIN, MODEL, MODE_AUTO, MODE_OPTIONS
 from .coordinator import RecuairCoordinator
 from .identity import device_identifiers, mac_connection
@@ -56,12 +57,14 @@ async def async_setup_entry(
     async_add_entities([RecuairModeSelect(coordinator, entry, device_info)])
 
 
-class RecuairModeSelect(CoordinatorEntity, SelectEntity):
+class RecuairModeSelect(RecuairRoleMixin, CoordinatorEntity, SelectEntity):
     """Select entity for Recuair operating mode."""
 
     _attr_has_entity_name = True
     _attr_name = "Mode"
     _attr_options = MODE_OPTIONS
+
+    _recuair_role = "mode"
 
     def __init__(
         self,
