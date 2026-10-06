@@ -159,12 +159,20 @@ class RecuairDashboard extends HTMLElement {
       group.push(entity);
       groups.set(entity.device_id, group);
     }
-    return [...groups.entries()].map(([id, entities]) => ({
-      id,
-      entities,
-      name: this._hass.devices?.[id]?.name_by_user || this._hass.devices?.[id]?.name || this._t("unit"),
-      areaIcon: this._hass.areas?.[this._hass.devices?.[id]?.area_id]?.icon,
-    }));
+    const areaCounts = new Map();
+    for (const id of groups.keys()) {
+      const areaId = this._hass.devices?.[id]?.area_id;
+      if (areaId) areaCounts.set(areaId, (areaCounts.get(areaId) || 0) + 1);
+    }
+    return [...groups.entries()].map(([id, entities]) => {
+      const device = this._hass.devices?.[id];
+      const unitName = device?.name_by_user || device?.name || this._t("unit");
+      const area = this._hass.areas?.[device?.area_id];
+      const name = area?.name
+        ? areaCounts.get(device.area_id) > 1 ? `${area.name} - ${unitName}` : area.name
+        : unitName;
+      return { id, entities, name, areaIcon: area?.icon };
+    });
   }
 
   _find(device, suffix, domain) {
@@ -639,10 +647,10 @@ class RecuairDashboard extends HTMLElement {
         .round { width: 56px; height: 56px; min-width: 56px; min-height: 56px; padding: 12px; border-radius: 50%; box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center; }
         svg { width: 28px; height: 28px; fill: currentColor; flex-shrink: 0; }
         .unit-title ha-icon { --mdc-icon-size: 28px; width: 28px; height: 28px; flex-shrink: 0; }
-        .unit-title { display: flex; align-items: center; gap: 10px; min-width: 0; }
+        .unit-title { display: flex; align-items: center; gap: 10px; min-width: 0; flex: 1; }
         .unit-title > span { overflow-wrap: anywhere; }
         .unit-title { flex-wrap: wrap; }
-        .notice-chips { display: inline-flex; flex-wrap: wrap; gap: 6px; }
+        .notice-chips { display: inline-flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; margin-left: auto; }
         .notice-chip { font-size: .75rem; font-weight: 500; border-radius: 8px; padding: 5px 9px; min-height: 28px; background: color-mix(in srgb, var(--warning-color, #ff9800) 20%, var(--card-background-color)); color: var(--warning-color, #ffb74d); }
         .notice-chip.notice-error { background: color-mix(in srgb, var(--error-color, #db4437) 20%, var(--card-background-color)); color: var(--error-color, #db4437); }
         .notice-dialog { max-width: min(420px, calc(100vw - 48px)); border: 0; border-radius: 18px; padding: 24px; background: var(--card-background-color); color: var(--primary-text-color); font: inherit; }
@@ -671,7 +679,7 @@ class RecuairDashboard extends HTMLElement {
         .brightness-row { display: block; padding: 12px 16px; }
         .brightness-row output { float: right; }
         .brightness-row input { display: block; width: 100%; margin-top: 14px; accent-color: var(--primary-color); }
-        .unit-menu { position: relative; }
+        .unit-menu { position: relative; flex-shrink: 0; }
         .unit-menu summary { cursor: pointer; list-style: none; padding: 8px 12px; font-size: 24px; }
         .menu-items { position: absolute; right: 0; z-index: 2; display: grid; width: max-content; min-width: 180px; padding: 6px 0; border-radius: 12px; background: var(--card-background-color); box-shadow: 0 4px 20px #0005; }
         .menu-items button, .color-row { border-radius: 0; padding: 10px 16px; min-height: 44px; background: transparent; text-align: left; white-space: nowrap; }
@@ -692,12 +700,12 @@ class RecuairDashboard extends HTMLElement {
         <div class="warning" role="alert" data-command-error ${this._commandError ? "" : "hidden"}>${this._escape(this._commandError || "")}</div>
         <div class="outside"><div class="eyebrow">${this._t("outside")}</div><div class="temperature">${average} °C</div>${outside.excluded.length ? `<div class="outside-note">${this._escape(this._t("excluded", { names: excludedNames }))}</div>` : ""}</div>
         <div class="units">
-          <div class="group">
+          ${devices.length > 1 ? `<div class="group">
             <div class="unit-head"><h2 class="unit-title">${this._icon("House")} ${this._t("all")}</h2>
               <details class="unit-menu"><summary aria-label="${this._t("moreAll")}">⋮</summary><div class="menu-items"><button data-control="power" data-target="all">${this._t("powerAll")}</button><button data-light-settings="all">${this._t("light")}</button></div></details>
             </div>
             ${this._controls(devices, true)}
-          </div>
+          </div>` : ""}
           ${cards || `<div class="unit">${this._t("empty")}</div>`}
         </div>
       </section>`;
@@ -884,7 +892,8 @@ class RecuairDashboard extends HTMLElement {
     const light = this._find(device, "_light", "light");
     const selected = this._state(mode, "");
     return `<article class="unit" data-device="${device.id}">
-      <div class="unit-head"><span class="unit-title">${this._deviceIcon(device)} <span data-unit-heading>${this._escape(device.name)}${this._deviceStatus(device)}</span><span class="notice-chips" data-notices="${device.id}">${this._notificationChips(device)}</span></span>
+      <div class="unit-head"><span class="unit-title">${this._deviceIcon(device)} <span data-unit-heading>${this._escape(device.name)}${this._deviceStatus(device)}</span></span>
+        <span class="notice-chips" data-notices="${device.id}">${this._notificationChips(device)}</span>
         <details class="unit-menu"><summary aria-label="${this._escape(this._t("moreUnit", { name: device.name }))}">⋮</summary><div class="menu-items">
           <button data-control="power" data-target="${device.id}">${selected === "off" ? this._t("on") : this._t("off")}</button>
           <button data-unit-color data-light-settings="${device.id}" ${selected === "off" ? "hidden" : ""}>${this._t("light")}</button>
@@ -902,13 +911,13 @@ class RecuairDashboard extends HTMLElement {
   }
 }
 
-if (!customElements.get("recuair-dashboard-v2")) {
-  customElements.define("recuair-dashboard-v2", RecuairDashboard);
+if (!customElements.get("recuair-dashboard")) {
+  customElements.define("recuair-dashboard", RecuairDashboard);
 }
 
 window.customCards = window.customCards || [];
-window.customCards.push({
-  type: "recuair-dashboard-v2",
+if (!window.customCards.some(card => card.type === "recuair-dashboard")) window.customCards.push({
+  type: "recuair-dashboard",
   name: "RecuAir Dashboard",
   description: "Dynamický přehled a hromadné ovládání jednotek RecuAir DC40.",
 });

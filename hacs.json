@@ -1,4 +1,8 @@
 {
-  "name": "Recuair",
-  "render_readme": true
+  "name": "RecuAir DC40",
+  "render_readme": true,
+  "zip_release": true,
+  "filename": "recuair.zip",
+  "hide_default_branch": true,
+  "homeassistant": "2026.9.0"
 }

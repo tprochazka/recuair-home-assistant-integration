@@ -3,10 +3,12 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
 const vm = require("node:vm");
-const ctx = { HTMLElement: class {}, customElements: { get: () => false, define: (name, cls) => { ctx.Card = cls; } }, window: {}, setTimeout, clearTimeout };
+const ctx = { HTMLElement: class {}, customElements: { get: () => false, define: (name, cls) => { ctx.Card = cls; ctx.cardType = name; } }, window: {}, setTimeout, clearTimeout };
 vm.createContext(ctx);
-vm.runInContext(fs.readFileSync(path.join(__dirname, "../dashboard/recuair-dashboard.js"), "utf8"), ctx);
+vm.runInContext(fs.readFileSync(path.join(__dirname, "../custom_components/recuair/frontend/recuair-dashboard.js"), "utf8"), ctx);
 const card = new ctx.Card();
+assert.equal(ctx.cardType, "recuair-dashboard");
+assert.equal(ctx.window.customCards[0].type, "recuair-dashboard");
 const entities = [
   { entity_id: "sensor.co2", platform: "recuair", device_id: "room" },
   { entity_id: "light.custom_name_2", platform: "recuair", device_id: "room" },
@@ -22,6 +24,21 @@ card._hass = { language: "en", entities: Object.fromEntries(entities.map(e => [e
   "sensor.fake_light": { state: "0", attributes: { recuair_role: "light" } },
 } };
 const device = card._devices()[0];
+// Titles follow area assignment and count units, not entities or other devices.
+assert.equal(device.name, "Test");
+card._hass.devices.room.area_id = "living";
+card._hass.areas = { living: { name: "Obývák", icon: "mdi:sofa" } };
+card._hass.devices.unrelated = { area_id: "living", name: "Lamp" };
+assert.equal(card._devices()[0].name, "Obývák");
+assert.equal(card._devices()[0].areaIcon, "mdi:sofa");
+card._hass.devices.second = { area_id: "living", name: "Unit 2", name_by_user: "U okna" };
+card._hass.entities["sensor.second"] = { entity_id: "sensor.second", platform: "recuair", device_id: "second" };
+assert.equal(card._devices()[0].name, "Obývák - Test");
+assert.equal(card._devices()[1].name, "Obývák - U okna");
+delete card._hass.entities["sensor.second"];
+card._hass.devices.room.area_id = "missing";
+assert.equal(card._devices()[0].name, "Test");
+delete card._hass.devices.room.area_id;
 assert.equal(card._find(device, "_co2", "sensor"), "sensor.co2");
 assert.equal(card._find(device, "_light", "light"), "light.custom_name_2");
 assert.equal(card._find(device, "_mode", "select"), "select.renamed");
@@ -47,3 +64,14 @@ for (const entity of Object.values(card._hass.states)) entity.state = "unavailab
 assert.equal(card._find(device, "_co2", "sensor"), "sensor.co2");
 assert.equal(card._find(device, "_light", "light"), "light.custom_name_2");
 console.log("Unavailable entities retain role lookup for history and controls.");
+
+card.querySelector = () => null;
+card.render();
+assert.ok(!card.innerHTML.includes('<div class="group">'));
+card._hass.entities["sensor.second"] = { entity_id: "sensor.second", platform: "recuair", device_id: "second" };
+card.render();
+assert.ok(card.innerHTML.includes('<div class="group">'));
+card._hass.entities = {};
+card.render();
+assert.ok(!card.innerHTML.includes('<div class="group">'));
+console.log("Card registration and group visibility for zero, one and multiple units verified.");

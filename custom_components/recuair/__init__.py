@@ -12,9 +12,16 @@ from .config_flow import DEFAULT_SCAN_INTERVAL
 from .const import DOMAIN
 from .coordinator import RecuairCoordinator
 from .repairs import async_sync_filter_issue
+from .frontend import async_setup_frontend
 from homeassistant.helpers import issue_registry as ir
 
 PLATFORMS = ["sensor", "binary_sensor", "select", "number", "light", "button", "update"]
+
+
+async def async_setup(hass: HomeAssistant, config: dict) -> bool:
+    """Make the optional dashboard card available once per HA process."""
+    await async_setup_frontend(hass)
+    return True
 
 
 async def _async_dashboard_activity(hass: HomeAssistant, call: ServiceCall) -> None:

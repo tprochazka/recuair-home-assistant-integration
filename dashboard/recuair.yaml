@@ -5,4 +5,4 @@ views:
     icon: mdi:hvac
     panel: true
     cards:
-      - type: custom:recuair-dashboard-v2
+      - type: custom:recuair-dashboard
