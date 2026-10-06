@@ -44,7 +44,7 @@ An example room dashboard is included in [dashboard/recuair.yaml](dashboard/recu
 During the setup process, you will be prompted to enter the following information:
 
 - **Host**: The local IP address of your Recuair ventilation unit (e.g., `192.168.1.123`).
-- **Scan Interval** Periodical check interval for new data, default is 60s.
+- **Scan Interval** Periodical check interval for new data, default is 60 seconds and minimum is 10 seconds.
 
 ## License
 

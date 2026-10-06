@@ -15,6 +15,9 @@ from homeassistant.helpers.service_info.zeroconf import ZeroconfServiceInfo
 from .api import RecuairApi, RecuairApiError
 from .const import DOMAIN, MODEL
 
+MIN_SCAN_INTERVAL = 10
+DEFAULT_SCAN_INTERVAL = 60
+
 
 def _device_title(device_name: str) -> str:
     """Include the supported model in a Home Assistant title."""
@@ -115,7 +118,7 @@ class RecuairConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         """Confirm a discovered Recuair device."""
         errors: dict[str, str] = {}
         if user_input is not None:
-            if user_input[CONF_SCAN_INTERVAL] < 60:
+            if user_input[CONF_SCAN_INTERVAL] < MIN_SCAN_INTERVAL:
                 errors["base"] = "min_scan_interval"
             else:
                 return self.async_create_entry(
@@ -127,7 +130,9 @@ class RecuairConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 )
         return self.async_show_form(
             step_id="discovery_confirm",
-            data_schema=vol.Schema({vol.Required(CONF_SCAN_INTERVAL, default=60): int}),
+            data_schema=vol.Schema({
+                vol.Required(CONF_SCAN_INTERVAL, default=DEFAULT_SCAN_INTERVAL): int
+            }),
             description_placeholders={
                 "model": self._discovered_device_title,
                 "host": self._discovered_host,
@@ -140,7 +145,7 @@ class RecuairConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         errors: dict[str, str] = {}
         if user_input is not None:
             host = user_input[CONF_HOST]
-            if user_input.get(CONF_SCAN_INTERVAL, 60) < 60:
+            if user_input.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL) < MIN_SCAN_INTERVAL:
                 errors["base"] = "min_scan_interval"
             elif self._entry_for_host(host) is not None:
                 return self.async_abort(reason="already_configured")
@@ -158,7 +163,7 @@ class RecuairConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             step_id="user",
             data_schema=vol.Schema({
                 vol.Required(CONF_HOST): str,
-                vol.Required(CONF_SCAN_INTERVAL, default=60): int,
+                vol.Required(CONF_SCAN_INTERVAL, default=DEFAULT_SCAN_INTERVAL): int,
             }),
             errors=errors,
         )
@@ -176,7 +181,7 @@ class RecuairOptionsFlowHandler(config_entries.OptionsFlow):
         """Update host and polling interval after validating the unit."""
         errors: dict[str, str] = {}
         if user_input is not None:
-            if user_input.get(CONF_SCAN_INTERVAL, 60) < 60:
+            if user_input.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL) < MIN_SCAN_INTERVAL:
                 errors["base"] = "min_scan_interval"
             elif await async_read_name(self.hass, user_input[CONF_HOST]):
                 return self.async_create_entry(title="", data=user_input)
@@ -187,7 +192,8 @@ class RecuairOptionsFlowHandler(config_entries.OptionsFlow):
             CONF_HOST, self.config_entry.data.get(CONF_HOST, "")
         )
         current_scan = self.config_entry.options.get(
-            CONF_SCAN_INTERVAL, self.config_entry.data.get(CONF_SCAN_INTERVAL, 60)
+            CONF_SCAN_INTERVAL,
+            self.config_entry.data.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL),
         )
         return self.async_show_form(
             step_id="init",

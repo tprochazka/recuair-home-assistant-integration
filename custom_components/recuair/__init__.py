@@ -5,6 +5,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from .api import RecuairApi
+from .config_flow import DEFAULT_SCAN_INTERVAL
 from .const import DOMAIN
 from .coordinator import RecuairCoordinator
 
@@ -20,7 +21,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # remove a user's entities.
     host = entry.options.get(CONF_HOST, entry.data[CONF_HOST])
     scan_interval = entry.options.get(
-        CONF_SCAN_INTERVAL, entry.data.get(CONF_SCAN_INTERVAL, 60)
+        CONF_SCAN_INTERVAL, entry.data.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
     )
     session = async_get_clientsession(hass)
     api = RecuairApi(host, session)

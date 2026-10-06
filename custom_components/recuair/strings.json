@@ -19,7 +19,7 @@
     "error": {
       "cannot_connect": "Cannot connect to the device",
       "mac_not_found": "Home Assistant could not find this device's MAC address via DHCP",
-      "min_scan_interval": "Minimum scan interval is 60 seconds",
+      "min_scan_interval": "Minimum scan interval is 10 seconds",
       "unknown": "Unknown error"
     },
     "abort": {
@@ -39,7 +39,7 @@
     },
     "error": {
       "cannot_connect": "Cannot connect to the device",
-      "min_scan_interval": "Minimum scan interval is 60 seconds",
+      "min_scan_interval": "Minimum scan interval is 10 seconds",
       "unknown": "Unknown error"
     }
   }
