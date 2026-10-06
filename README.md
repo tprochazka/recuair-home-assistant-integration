@@ -37,7 +37,13 @@ After installation, the DC40 should appear automatically in Home Assistant's dis
 
 ## Dashboard
 
-An example room dashboard is included in [dashboard/recuair.yaml](dashboard/recuair.yaml). Replace its entity IDs with those created for your unit, then use the YAML mode in the raw configuration editor of a dedicated Lovelace dashboard. The filter-reset control intentionally remains in the service section: press it only after replacing the physical filters.
+The included dashboard is dynamic: it lists every device created by this integration and offers both room-level and whole-home controls. It is styled after the Android app while remaining independent of HACS dashboard-card dependencies.
+
+1. Copy [dashboard/recuair-dashboard.js](dashboard/recuair-dashboard.js) to Home Assistant's `/config/www/recuair-dashboard.js`.
+2. In **Settings → Dashboards → Resources**, add `/local/recuair-dashboard.js` as a **JavaScript module**.
+3. Create a YAML-mode dashboard and paste [dashboard/recuair.yaml](dashboard/recuair.yaml).
+
+The all-units card can set automatic, manual, bypass and holiday modes for every discovered DC40, control all unit lights, and turn every unit off. A newly added DC40 appears on the dashboard automatically after Home Assistant has created its entities.
 
 ## Configuration
 
