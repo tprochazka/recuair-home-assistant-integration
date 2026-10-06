@@ -14,7 +14,7 @@ concurrency:
 
 jobs:
   test-and-package:
-    name: Test and build installable ZIPs
+    name: Test and build installable package
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -40,7 +40,7 @@ jobs:
         run: python -m compileall -q custom_components/recuair scripts
       - name: Check and test the dashboard
         run: |
-          node --check dashboard/recuair-dashboard.js
+          node --check custom_components/recuair/frontend/recuair-dashboard.js
           node tests/test_dashboard.cjs
       - name: Check whitespace errors
         run: git diff-tree --check HEAD
@@ -53,3 +53,39 @@ jobs:
           path: dist/*
           if-no-files-found: error
           retention-days: 30
+
+  release:
+    name: Publish tested release
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: test-and-package
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      actions: read
+    steps:
+      - name: Check out tagged sources
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Verify release identity
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          version = json.loads(Path("custom_components/recuair/manifest.json").read_text())["version"]
+          assert os.environ["RELEASE_TAG"] == "v" + version, "Tag must match manifest version"
+          PY
+      - name: Download tested package
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" --name "recuair-$GITHUB_SHA" --dir dist
+      - name: Publish GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          cd dist
+          sha256sum --check SHA256SUMS.txt
+          flags=()
+          if [[ "$RELEASE_TAG" == *b* || "$RELEASE_TAG" == *rc* || "$RELEASE_TAG" == *a* ]]; then flags+=(--prerelease); fi
+          gh release create "$RELEASE_TAG" recuair.zip SHA256SUMS.txt --repo "$GITHUB_REPOSITORY" --verify-tag --title "RecuAir $RELEASE_TAG" --generate-notes "${flags[@]}"

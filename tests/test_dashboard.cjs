@@ -5,7 +5,7 @@ const path = require("node:path");
 const vm = require("node:vm");
 const ctx = { HTMLElement: class {}, customElements: { get: () => false, define: (name, cls) => { ctx.Card = cls; } }, window: {}, setTimeout, clearTimeout };
 vm.createContext(ctx);
-vm.runInContext(fs.readFileSync(path.join(__dirname, "../dashboard/recuair-dashboard.js"), "utf8"), ctx);
+vm.runInContext(fs.readFileSync(path.join(__dirname, "../custom_components/recuair/frontend/recuair-dashboard.js"), "utf8"), ctx);
 const card = new ctx.Card();
 const entities = [
   { entity_id: "sensor.co2", platform: "recuair", device_id: "room" },

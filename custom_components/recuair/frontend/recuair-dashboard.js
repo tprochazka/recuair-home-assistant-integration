@@ -907,7 +907,7 @@ if (!customElements.get("recuair-dashboard-v2")) {
 }
 
 window.customCards = window.customCards || [];
-window.customCards.push({
+if (!window.customCards.some(card => card.type === "recuair-dashboard-v2")) window.customCards.push({
   type: "recuair-dashboard-v2",
   name: "RecuAir Dashboard",
   description: "Dynamický přehled a hromadné ovládání jednotek RecuAir DC40.",

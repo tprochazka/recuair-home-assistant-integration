@@ -1,4 +1,4 @@
-"""Build reproducible integration and complete manual-install ZIP packages."""
+"""Build a reproducible HACS and manual-install ZIP package."""
 from __future__ import annotations
 
 import argparse
@@ -9,7 +9,7 @@ from zipfile import ZIP_DEFLATED, ZipFile, ZipInfo
 
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE = ROOT / "custom_components/recuair"
-INTEGRATION_SUFFIXES = {".py", ".json", ".yaml", ".svg", ".png"}
+INTEGRATION_SUFFIXES = {".py", ".json", ".yaml", ".svg", ".png", ".js"}
 
 
 def write_zip(destination: Path, files: list[tuple[Path, str]]) -> None:
@@ -36,17 +36,12 @@ def build(output: Path) -> list[Path]:
     files = [(path, path.relative_to(SOURCE).as_posix()) for path in sources]
     output.mkdir(parents=True, exist_ok=True)
     integration = output / "recuair.zip"
-    bundle = output / "recuair-bundle.zip"
     write_zip(integration, files)
-    write_zip(bundle, [(path, "custom_components/recuair/" + name) for path, name in files] + [
-        (ROOT / "dashboard/recuair-dashboard.js", "www/recuair-dashboard.js"),
-        (ROOT / "dashboard/recuair.yaml", "dashboard/recuair.yaml"),
-        (ROOT / "README.md", "README.md"), (ROOT / "LICENSE", "LICENSE"),
-    ])
-    (output / "SHA256SUMS.txt").write_text("".join(
-        f"{hashlib.sha256(path.read_bytes()).hexdigest()}  {path.name}\n"
-        for path in (integration, bundle)), encoding="utf-8")
-    return [integration, bundle]
+    (output / "SHA256SUMS.txt").write_text(
+        f"{hashlib.sha256(integration.read_bytes()).hexdigest()}  {integration.name}\n",
+        encoding="utf-8")
+    return [integration]
+
 
 
 if __name__ == "__main__":

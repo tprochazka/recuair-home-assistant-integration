@@ -3,12 +3,19 @@
   "name": "Recuair",
   "documentation": "https://github.com/tprochazka/recuair",
   "issue_tracker": "https://github.com/tprochazka/recuair/issues",
-  "codeowners": ["@tprochazka"],
+  "codeowners": [
+    "@tprochazka"
+  ],
   "config_flow": true,
   "iot_class": "local_polling",
-  "version": "0.2.0b1",
-  "requirements": ["beautifulsoup4==4.12.3"],
-  "dependencies": ["dhcp", "zeroconf"],
+  "version": "0.2.0",
+  "requirements": [
+    "beautifulsoup4==4.12.3"
+  ],
+  "dependencies": [
+    "dhcp",
+    "zeroconf"
+  ],
   "dhcp": [
     {
       "hostname": "dc40*"
@@ -22,5 +29,8 @@
       "type": "_http._tcp.local.",
       "name": "dc40*"
     }
+  ],
+  "after_dependencies": [
+    "frontend"
   ]
 }
