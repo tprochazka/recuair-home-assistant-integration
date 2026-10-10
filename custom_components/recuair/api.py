@@ -87,27 +87,27 @@ class RecuairApi:
         """Read current color from fields or the firmware 17.5 slider handler.
 
         Color preset buttons also contain RGB values, so only inspect the
-        intensity slider's onchange attribute for the fallback.
+        intensity slider's onchange attribute for the active color.
         """
+        # The slider submits the active color. Firmware keeps the previous
+        # custom RGB input values when the white preset is selected.
+        slider = soup.find("input", {"name": "intensity"})
+        handler = slider.get("onchange", "") if slider else ""
+        payload = re.search(r"\bpostForm\s*\(\s*\{([^}]*)\}", handler)
         values = []
-        for channel in ("r", "g", "b"):
-            element = soup.find("input", {"name": channel})
-            try:
-                values.append(int(element["value"]))
-            except (KeyError, TypeError, ValueError):
-                break
-        if len(values) != 3:
-            slider = soup.find("input", {"name": "intensity"})
-            handler = slider.get("onchange", "") if slider else ""
-            payload = re.search(r"\bpostForm\s*\(\s*\{([^}]*)\}", handler)
-            if not payload:
-                return None
-            values = []
+        if payload:
             for channel in ("r", "g", "b"):
                 match = re.search(rf"(?:^|,)\s*{channel}\s*:\s*(\d+)\s*(?=,|$)", payload[1])
                 if not match:
                     return None
                 values.append(int(match[1]))
+        else:
+            for channel in ("r", "g", "b"):
+                element = soup.find("input", {"name": channel})
+                try:
+                    values.append(int(element["value"]))
+                except (KeyError, TypeError, ValueError):
+                    return None
         if not all(0 <= value <= 255 for value in values):
             return None
         return (values[0], values[1], values[2])

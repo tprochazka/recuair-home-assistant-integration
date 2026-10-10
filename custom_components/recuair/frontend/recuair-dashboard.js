@@ -3,6 +3,8 @@ const RECUAIR_ICONS = {"BeachAccess": ["M13.127,14.56L14.557,13.13L20.997,19.573
 const RECUAIR_TEXT = {
   "cs": {
     "unit": "Rekuperace",
+    "renderError": "Dashboard se nepodařilo vykreslit: {reason}",
+    "retry": "Zkusit znovu",
     "commandError": "{name}: změna se nepodařila. Zobrazen je stav hlášený jednotkou.",
     "holidayAll": "Dovolená všech jednotek",
     "powerUnit": "Zapnout / vypnout jednotku",
@@ -51,6 +53,8 @@ const RECUAIR_TEXT = {
   },
   "en": {
     "unit": "Ventilation unit",
+    "renderError": "Failed to render dashboard: {reason}",
+    "retry": "Try again",
     "commandError": "{name}: the change failed. Showing the state reported by the unit.",
     "holidayAll": "Holiday mode for all units",
     "powerUnit": "Turn unit on / off",
@@ -98,6 +102,11 @@ const RECUAIR_TEXT = {
     "statusAutoBypass": "(auto bypass)"
   }
 };
+// HA installs its scoped custom-element registry during frontend startup.
+// Extra modules may finish loading before that replacement. Wait before both
+// capturing HTMLElement and registering the card in the final registry.
+function registerRecuairDashboard() {
+if (customElements.get("recuair-dashboard")) return;
 class RecuairDashboard extends HTMLElement {
   _t(key, values = {}) {
     const language = (this._hass?.language || this._hass?.locale?.language || "en").toLowerCase();
@@ -121,6 +130,24 @@ class RecuairDashboard extends HTMLElement {
   }
 
   set hass(hass) {
+    try {
+      this._applyHass(hass);
+    } catch (error) {
+      // HA otherwise replaces the card with a generic permanent error card.
+      // Keep this instance alive so the next state update can recover it.
+      console.error("[RecuAir dashboard] State update failed", error);
+      this._editing = false;
+      this._openManualSelect = undefined;
+      this._detailDeviceId = undefined;
+      this._renderPending = false;
+      this._lightColorEditing = this._lightSliderEditing = false;
+      const reason = error?.message || String(error);
+      this.innerHTML = `<ha-card role="alert" style="padding:24px"><p>${this._escape(this._t("renderError", { reason }))}</p><button data-render-retry>${this._t("retry")}</button></ha-card>`;
+      this.querySelector("[data-render-retry]").addEventListener("click", () => { this.hass = this._hass; });
+    }
+  }
+
+  _applyHass(hass) {
     this._hass = hass;
     this._reconcileCommands();
     if (this._activityClient && !this._activityStarted && hass.services?.recuair?.dashboard_activity) {
@@ -215,8 +242,14 @@ class RecuairDashboard extends HTMLElement {
     } else this.render();
   }
 
-  _optimisticCall(domain, service, data, id, state, control = "light", origin = "") {
+  _optimisticCall(domain, service, data, id, state, control = "light", origin = "", lightIntent) {
     if (!id) return;
+    if (domain === "light" && (lightIntent || service === "turn_off" || data.rgb_color)) {
+      this._lightIntents ||= new Map();
+      // A later off/color command supersedes color samples not queued yet.
+      // Brightness-only writes preserve the selected color instead.
+      this._lightIntents.set(id, lightIntent || {});
+    }
     this._commands ||= new Map();
     this._commandQueues ||= new Map();
     clearTimeout(this._commands.get(id)?.timer);
@@ -404,7 +437,49 @@ class RecuairDashboard extends HTMLElement {
     const rgb_color = [1, 3, 5].map((offset) => parseInt(input.value.slice(offset, offset + 2), 16));
     const devices = input.dataset.color === "all" ? this._devices() : this._devices().filter((device) => device.id === input.dataset.color);
     if (devices.some((device) => this._isUpdating(device))) return;
-    devices.map((device) => this._find(device, "_light", "light")).filter(Boolean).forEach((id) => this._optimisticCall("light", "turn_on", { rgb_color }, id, "on", "light", input.dataset.color));
+    return Promise.all(devices.map((device) => this._find(device, "_light", "light")).filter(Boolean)
+      .filter((id) => !input.intents || this._lightIntents?.get(id) === input.intents.get(id))
+      .map((id) => this._optimisticCall("light", "turn_on", { rgb_color }, id, "on", "light", input.dataset.color, input.intents?.get(id))));
+  }
+
+  _previewColor(input) {
+    const target = input.dataset.color;
+    if (!/^#[0-9a-f]{6}$/i.test(input.value)) return;
+    const devices = target === "all" ? this._devices() : this._devices().filter((device) => device.id === target);
+    if (devices.some((device) => this._isUpdating(device))) return;
+    this._lightIntents ||= new Map();
+    const intents = new Map();
+    for (const device of devices) {
+      const id = this._find(device, "_light", "light");
+      if (!id) continue;
+      const intent = {};
+      this._lightIntents.set(id, intent);
+      intents.set(id, intent);
+    }
+    const sample = { value: input.value, intents };
+    this._colorPreviews ||= new Map();
+    const existing = this._colorPreviews.get(target);
+    if (existing) {
+      existing.sample = sample;
+      return existing.promise;
+    }
+    const preview = { sample };
+    this._colorPreviews.set(target, preview);
+    // Apply the first selection immediately. While a write is in flight,
+    // retain only the latest selection instead of queuing every drag event.
+    // Keep draining after the picker closes so the last choice is persisted.
+    preview.promise = (async () => {
+      try {
+        while (preview.sample) {
+          const sample = preview.sample;
+          preview.sample = undefined;
+          await this._handleColor({ ...sample, dataset: { color: target } });
+        }
+      } finally {
+        this._colorPreviews.delete(target);
+      }
+    })();
+    return preview.promise;
   }
 
   _lightAttributes(id) {
@@ -424,8 +499,17 @@ class RecuairDashboard extends HTMLElement {
       popup.querySelector("output").textContent = same ? levels[0] : this._t("mixed");
     }
     const colors = ids.map((id) => this._lightAttributes(id).rgb_color);
-    if (!this._lightColorEditing && colors[0]?.length === 3 && colors.every((color) => color?.every((value, index) => value === colors[0][index]))) {
-      popup.querySelector("[data-color]").value = "#" + colors[0].map((value) => value.toString(16).padStart(2, "0")).join("");
+    if (!this._lightColorEditing && !this._colorPreviews?.has(target)) {
+      if (colors[0]?.length === 3 && colors.every((color) => color?.every((value, index) => value === colors[0][index]))) {
+        const color = popup.querySelector("[data-color]");
+        color.value = "#" + colors[0].map((value) => value.toString(16).padStart(2, "0")).join("");
+        // Deduplicate input/change only while this value remains selected.
+        // A failed command or an external color change must allow a retry.
+        popup.dataset.selectedColor = color.value;
+      } else {
+        // Mixed or unavailable group colors must allow reapplying the selection.
+        delete popup.dataset.selectedColor;
+      }
     }
   }
 
@@ -463,8 +547,16 @@ class RecuairDashboard extends HTMLElement {
     popup.querySelector("[data-light-close]").addEventListener("click", () => this._closeLightPopup());
     const color = popup.querySelector("[data-color]");
     color.addEventListener("focus", () => { this._lightColorEditing = true; });
-    color.addEventListener("blur", () => { this._lightColorEditing = false; this._updateLightPopup(); });
-    color.addEventListener("change", () => { this._lightColorEditing = false; this._handleColor(color); });
+    const previewColor = () => {
+      if (popup.dataset.selectedColor === color.value) return;
+      popup.dataset.selectedColor = color.value;
+      this._previewColor(color);
+    };
+    // Chrome emits input while its native picker is still open; mobile
+    // pickers may commit only with change. Blur must never restore old RGB.
+    color.addEventListener("input", previewColor);
+    color.addEventListener("change", previewColor);
+    color.addEventListener("blur", () => { this._lightColorEditing = false; });
     const slider = popup.querySelector('input[type="range"]');
     slider.addEventListener("input", () => { this._lightSliderEditing = true; popup.querySelector("output").textContent = slider.value; });
     slider.addEventListener("change", () => {
@@ -921,3 +1013,11 @@ if (!window.customCards.some(card => card.type === "recuair-dashboard")) window.
   name: "RecuAir Dashboard",
   description: "Dynamický přehled a hromadné ovládání jednotek RecuAir DC40.",
 });
+
+}
+
+if (customElements.get("home-assistant")) {
+  registerRecuairDashboard();
+} else {
+  customElements.whenDefined("home-assistant").then(registerRecuairDashboard);
+}

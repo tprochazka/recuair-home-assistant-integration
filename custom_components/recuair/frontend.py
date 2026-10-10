@@ -1,4 +1,5 @@
 """Serve the optional Lovelace card from the integration package."""
+import hashlib
 from pathlib import Path
 
 from homeassistant.components import frontend
@@ -20,7 +21,12 @@ async def async_setup_frontend(hass: HomeAssistant) -> None:
             False,
         ),
     ])
+    asset = Path(__file__).parent / "frontend" / "recuair-dashboard.js"
+    # Invalidate browser caches for local deployments as well as releases.
+    content_hash = await hass.async_add_executor_job(
+        lambda: hashlib.sha256(asset.read_bytes()).hexdigest()[:16]
+    )
     frontend.add_extra_js_url(
         hass,
-        f"/recuair_static/recuair-dashboard.js?v={integration.version}",
+        f"/recuair_static/recuair-dashboard.js?v={integration.version}&h={content_hash}",
     )

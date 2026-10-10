@@ -76,6 +76,15 @@ class SettingsSession(Session):
 class RecuairApiTest(unittest.IsolatedAsyncioTestCase):
     """Verify paths and readable data without controlling a real unit."""
 
+    def test_white_preset_overrides_stale_custom_color_fields(self) -> None:
+        soup = API.BeautifulSoup("""
+            <input name="r" value="0"><input name="g" value="0">
+            <input name="b" value="255">
+            <input name="intensity" value="3"
+              onchange="postForm({r:255,g:255,b:255,intensity:this.value}, '/setting', '');">
+        """, "html.parser")
+        self.assertEqual(API.RecuairApi._parse_light_rgb(soup), (255, 255, 255))
+
     def test_light_color_from_firmware_17_5_slider_not_preset(self) -> None:
         soup = API.BeautifulSoup('''
           <button onclick="postForm({r:1,g:2,b:3,intensity:5},'/setting','')"></button>

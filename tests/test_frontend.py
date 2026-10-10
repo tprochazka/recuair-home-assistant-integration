@@ -1,4 +1,5 @@
 """Check automatic card registration without touching user dashboards."""
+import hashlib
 import importlib.util
 from pathlib import Path
 import sys
@@ -31,6 +32,7 @@ class FrontendTest(unittest.IsolatedAsyncioTestCase):
         module, frontend, loader = self.load_frontend()
         hass = types.SimpleNamespace(
             config=types.SimpleNamespace(components={"frontend"}),
+            async_add_executor_job=AsyncMock(side_effect=lambda fn: fn()),
             http=types.SimpleNamespace(async_register_static_paths=AsyncMock()),
         )
         await module.async_setup_frontend(hass)
@@ -38,8 +40,9 @@ class FrontendTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(paths[0][0], "/recuair_static")
         self.assertTrue((Path(paths[0][1]) / "recuair-dashboard.js").is_file())
         self.assertFalse(paths[0][2])
+        content_hash = hashlib.sha256((Path(paths[0][1]) / "recuair-dashboard.js").read_bytes()).hexdigest()[:16]
         frontend.add_extra_js_url.assert_called_once_with(
-            hass, "/recuair_static/recuair-dashboard.js?v=0.2.0")
+            hass, f"/recuair_static/recuair-dashboard.js?v=0.2.0&h={content_hash}")
 
     async def test_headless_installation_does_not_require_http_or_frontend(self):
         module, frontend, loader = self.load_frontend()
